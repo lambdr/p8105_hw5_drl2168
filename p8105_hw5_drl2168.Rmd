@@ -22,3 +22,20 @@ options(
 scale_colour_discrete = scale_colour_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 ```
+
+```{r data import}
+df_homicide <- read_csv("data/homicide-data.csv", 
+                        na = "Unknown") |> 
+  mutate(city_state = str_c(city, ", ", state))
+```
+
+```{r group_by}
+df_homicide |> 
+  group_by(city_state) |> 
+  summarize(n_homicide = n(),
+            n_unsolved = sum(disposition %in% c("
+                                                Closed without arrest",
+                                                "Open/No arrest"))) |> 
+  mutate(p_unsolved = n_unsolved/n_homicide)
+```
+
