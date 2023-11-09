@@ -24,25 +24,27 @@ scale_fill_discrete = scale_fill_viridis_d
 ```
 
 # Problem 1
-
+I imported the data, noting that missing data are coded as `Unknown`. I also corrected a typo, where a homicide in Tulsa, OK was misclassified as in AL, and corrected the state representations (Wisconsin was `wi`). I then summarized the homicide data by city and state.
 ```{r data import}
 df_homicide <- read_csv("data/homicide-data.csv", 
                         na = "Unknown") |> 
-  mutate(city_state = str_c(city, ", ", state))
-```
-
-```{r summarize by city_state}
-df_cs_homicide <- df_homicide |> 
+  mutate(
+    state = case_when(
+      city == "Tulsa" ~ "OK",
+      city != "Tulsa" ~ state),
+    state = str_to_upper(state),
+    city_state = str_c(city, ", ", state)
+    ) |> 
   group_by(city_state) |> 
   summarize(n_homicide = n(),
             n_unsolved = sum(disposition %in% c("
                                                 Closed without arrest",
-                                                "Open/No arrest"))) |> 
-  mutate(p_unsolved = n_unsolved/n_homicide)
+                                                "Open/No arrest")))
 ```
 
+Within Baltimore, MD, I calculated the proportion of unsolved cases and a confidence interval for this value.
 ```{r baltimore prototype}
-df_cs_homicide |> 
+df_homicide |> 
   filter(city_state == "Baltimore, MD") |> 
   mutate(df = broom::tidy(prop.test(x = n_unsolved, 
                                     n = n_homicide,
@@ -50,7 +52,8 @@ df_cs_homicide |>
                                     alternative = "two.sided")))
 ```
 
-```{r}
+To improve workflow, I wrote a function to perform a z-test and construct a confidence interval under normal approximations of the data.
+```{r define homicide function}
 z_homicide = function(x, n){
   prop.test(x = x, n = n,
             p = 0.5, alternative = "two.sided") |> 
@@ -58,12 +61,21 @@ z_homicide = function(x, n){
 }
 ```
 
-```{r}
-df_cs_homicide |> 
+Now I use this function to create a plot of the confidence interval for every city.
+```{r create prop plot}
+df_homicide |> 
   mutate(z_out = map2(n_unsolved, n_homicide, z_homicide)) |> 
   unnest(z_out) |> 
-  view()
+  select(city_state, estimate, conf.low, conf.high) |> 
+  mutate(city_state = fct_reorder(city_state, estimate)) |> 
+  ggplot(aes(x = estimate, y = city_state)) + 
+  geom_point() + 
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high)) + 
+  labs(
+      title = "Point and Interval Estimates of Homicide Closure",
+      x = "Proportion of Unsolved Homicides",
+      y = "City & State"
+  )
 ```
 
-I don't know why this workflow seems much easier for the total df than it was for Baltimore alone.
-
+# Problem 2
