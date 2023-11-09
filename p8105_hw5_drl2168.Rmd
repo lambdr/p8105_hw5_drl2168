@@ -23,14 +23,16 @@ scale_colour_discrete = scale_colour_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 ```
 
+# Problem 1
+
 ```{r data import}
 df_homicide <- read_csv("data/homicide-data.csv", 
                         na = "Unknown") |> 
   mutate(city_state = str_c(city, ", ", state))
 ```
 
-```{r group_by}
-df_homicide |> 
+```{r summarize by city_state}
+df_cs_homicide <- df_homicide |> 
   group_by(city_state) |> 
   summarize(n_homicide = n(),
             n_unsolved = sum(disposition %in% c("
@@ -38,4 +40,30 @@ df_homicide |>
                                                 "Open/No arrest"))) |> 
   mutate(p_unsolved = n_unsolved/n_homicide)
 ```
+
+```{r baltimore prototype}
+df_cs_homicide |> 
+  filter(city_state == "Baltimore, MD") |> 
+  mutate(df = broom::tidy(prop.test(x = n_unsolved, 
+                                    n = n_homicide,
+                                    p = 0.5,
+                                    alternative = "two.sided")))
+```
+
+```{r}
+z_homicide = function(x, n){
+  prop.test(x = x, n = n,
+            p = 0.5, alternative = "two.sided") |> 
+  broom::tidy()
+}
+```
+
+```{r}
+df_cs_homicide |> 
+  mutate(z_out = map2(n_unsolved, n_homicide, z_homicide)) |> 
+  unnest(z_out) |> 
+  view()
+```
+
+I don't know why this workflow seems much easier for the total df than it was for Baltimore alone.
 
