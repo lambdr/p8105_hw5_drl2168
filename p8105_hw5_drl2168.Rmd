@@ -79,3 +79,21 @@ df_homicide |>
 ```
 
 # Problem 2
+```{r, message = FALSE}
+df_study <- tibble(
+  path = list.files("data/prob2")
+) |> 
+  mutate(
+         id = str_sub(path, end = 6),
+         group = str_sub(path, end = 3),
+         path = str_c("data/prob2/", path),
+         data = map(path, read_csv)
+         ) |> 
+  unnest(data) |> 
+  pivot_longer(week_1:week_8,
+               names_to = "week",
+               values_to = "obs",
+               names_prefix = "week_") |> 
+  select(-path)
+```
+
