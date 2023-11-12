@@ -145,3 +145,37 @@ df_sim0 <- tibble(
   
 ```
 
+Since this appears to be working, I will now repeat the process, but allow the true mean to range from 0 to 6.
+
+```{r full case}
+df_sim <- expand_grid(
+  mu = 0:6,
+  iter = 1:5000
+) |> 
+  select(-iter) |> 
+  mutate(sample = map(mu,norm_samp),
+         test = map(sample, t.test),
+         test = map(test, broom::tidy)) |> 
+  unnest(test) |> 
+  select(mu, estimate, p.value)
+```
+
+Now I will examine the rejection probability of these cases
+
+```{r}
+df_sim |> 
+  mutate(reject = case_when(
+    p.value < 0.05 ~ 1,
+    p.value >= 0.05 ~ 0
+  )) |> 
+  group_by(mu) |> 
+  summarize(p_reject = mean(reject)) |> 
+  ggplot(aes(x = mu, y = p_reject)) + 
+  geom_point()+
+  labs(x = "True Mean",
+       y = "Probability of rejecting H0")
+```
+
+When the true mean is 0, the probability of rejecting the null hypothesis is very close to 0.05, our prescribed $\alpha$-level. When the true mean is not equal to 0, this probability is the power, or $1-\beta$. It is low for small effects (1,2), but is almost 100% by a mean of 4. The shape of this curve is sigmoidal, and crosses 50% a bit before 2, which would probably correspond to ~2 standard errors for these distributions $\frac{\sigma}{\sqrt{30}} \approx 1.82$.
+
+
