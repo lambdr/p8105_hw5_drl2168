@@ -145,7 +145,7 @@ df_sim0 <- tibble(
   
 ```
 
-Since this appears to be working, I will now repeat the process, but allow the true mean to range from 0 to 6.
+Since this appears to be working, I will now repeat the process, but allow the true mean to range from 0 to 6. For use in future problems, I will add the variable `reject` taking the value of 1 when `p.value` is less than 0.05, and 0 otherwise.
 
 ```{r full case}
 df_sim <- expand_grid(
@@ -157,17 +157,18 @@ df_sim <- expand_grid(
          test = map(sample, t.test),
          test = map(test, broom::tidy)) |> 
   unnest(test) |> 
-  select(mu, estimate, p.value)
+  select(mu, estimate, p.value) |> 
+  mutate(
+    reject = case_when(
+      p.value < 0.05 ~ 1,
+      p.value >= 0.05 ~ 0)
+  )
 ```
 
 Now I will examine the rejection probability of these cases
 
 ```{r}
 df_sim |> 
-  mutate(reject = case_when(
-    p.value < 0.05 ~ 1,
-    p.value >= 0.05 ~ 0
-  )) |> 
   group_by(mu) |> 
   summarize(p_reject = mean(reject)) |> 
   ggplot(aes(x = mu, y = p_reject)) + 
@@ -176,6 +177,36 @@ df_sim |>
        y = "Probability of rejecting H0")
 ```
 
-When the true mean is 0, the probability of rejecting the null hypothesis is very close to 0.05, our prescribed $\alpha$-level. When the true mean is not equal to 0, this probability is the power, or $1-\beta$. It is low for small effects (1,2), but is almost 100% by a mean of 4. The shape of this curve is sigmoidal, and crosses 50% a bit before 2, which would probably correspond to ~2 standard errors for these distributions $\frac{\sigma}{\sqrt{30}} \approx 1.82$.
+When the true mean is 0, the probability of rejecting the null hypothesis is very close to 0.05, our prescribed $\alpha$-level. When the true mean is not equal to 0, this probability is the power, or $1-\beta$. It is low for small effects (1,2), but is almost 100% by a mean of 4. The shape of this curve is sigmoidal, and crosses 50% a bit before 2, which would probably correspond to ~2 standard errors for these distributions $2*\frac{\sigma}{\sqrt{30}} \approx 1.82$.
 
+
+```{r}
+df_sim |> 
+  mutate(
+    mu_report = case_when(
+      reject == 1 ~ estimate,
+      reject == 0 ~ NA
+    ) 
+  ) |> 
+  group_by(mu) |> 
+  summarize(mu_hat = mean(estimate),
+            mu_bias = mean(mu_report, na.rm = TRUE)) |> 
+  ggplot() + 
+  geom_point(aes(x = mu, y = mu_hat, color = mu, fill = mu), 
+             shape = 16, size = 2) +
+  geom_point(aes(x = mu, y = mu_bias, color = mu, fill = mu), 
+             shape = 18, size = 3) +
+  labs(
+    title = "Mean Estimates vs True Mean",
+    x = "True Mean",
+    y = "Etimated Mean",
+    caption = "Circles: All estimates; Diamonds: Only \"significant\" estimates"
+  ) + 
+  theme(legend.position = "none")
+  
+```
+
+The sample estimate $\hat{\mu}$ for all tests is quite close to the true mean in all cases. However, this estimate is only equal to the estimate conditioned on rejecting the null hypothesis when the probability of rejecting the null is high. As we saw in the previous figure, that is the case for $\mu \geq 4$. When the true mean is smaller than 4, the conditional estimate of $\mu$ is greater than the total estimate. This is because we are selecting only the samples with a high mean, and ignoring those with smaller means.
+
+An exception is the $\mu = 0$ case, where the probability of rejecting the null hypothesis is equally likely to come from a negative mean or a positive one; these cancel out on average, and so the estimate remains 0.
 
