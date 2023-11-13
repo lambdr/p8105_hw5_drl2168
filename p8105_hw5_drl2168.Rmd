@@ -137,7 +137,7 @@ df_sim0 <- tibble(
   iter = 1:5000
 ) |> 
   select(-iter) |> 
-  mutate(sample = map(mu,norm_samp),
+  mutate(sample = map(mu, norm_samp),
          test = map(sample, t.test),
          test = map(test, broom::tidy)) |> 
   unnest(test) |> 
@@ -153,7 +153,7 @@ df_sim <- expand_grid(
   iter = 1:5000
 ) |> 
   select(-iter) |> 
-  mutate(sample = map(mu,norm_samp),
+  mutate(sample = map(mu, norm_samp),
          test = map(sample, t.test),
          test = map(test, broom::tidy)) |> 
   unnest(test) |> 
@@ -165,7 +165,7 @@ df_sim <- expand_grid(
   )
 ```
 
-Now I will examine the rejection probability of these cases
+Now I will examine the rejection probability of these cases.
 
 ```{r}
 df_sim |> 
